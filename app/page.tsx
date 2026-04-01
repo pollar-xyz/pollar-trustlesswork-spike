@@ -1,13 +1,71 @@
 "use client";
 
 import { usePollar, WalletButton } from "@pollar/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+interface EscrowForm {
+  title: string;
+  description: string;
+  amount: number;
+  serviceProvider: string;
+  approver: string;
+}
+
+function Field({
+  label,
+  id,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  id: keyof EscrowForm;
+  value: string | number;
+  onChange: (id: keyof EscrowForm, value: string) => void;
+  type?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-xs uppercase tracking-wide text-zinc-400">
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(id, e.target.value)}
+        className="border bg-transparent px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-white"
+      />
+    </div>
+  );
+}
 
 export default function Home() {
-  const { isAuthenticated, walletAddress, logout, signAndSubmitTx, transaction } = usePollar();
+  const { isAuthenticated, walletAddress, logout, signAndSubmitTx, transaction, network } = usePollar();
   const [xdr, setXdr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<EscrowForm>({
+    title: "Pollar TW Spike Escrow",
+    description: "Single-release escrow from Pollar spike",
+    amount: 1,
+    serviceProvider: "",
+    approver: "",
+  });
+
+  useEffect(() => {
+    if (walletAddress) {
+      setForm((f) => ({
+        ...f,
+        serviceProvider: f.serviceProvider || walletAddress,
+        approver: f.approver || walletAddress,
+      }));
+    }
+  }, [walletAddress]);
+
+  function handleField(id: keyof EscrowForm, value: string) {
+    setForm((f) => ({ ...f, [id]: id === "amount" ? Number(value) : value }));
+  }
 
   async function handleInitialize() {
     if (!walletAddress) return;
@@ -18,7 +76,7 @@ export default function Home() {
       const res = await fetch("/api/trustless-work/initialize-escrow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signer: walletAddress, amount: 1 }),
+        body: JSON.stringify({ signer: walletAddress, ...form }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
@@ -59,8 +117,17 @@ export default function Home() {
         <p className="break-all"><span className="font-medium">Wallet address:</span> {walletAddress ?? "Not available"}</p>
       </section>
 
-      <section className="border p-6 flex flex-col gap-4 text-sm">
+      {isAuthenticated && <section className="border p-6 flex flex-col gap-4 text-sm">
         <h2 className="font-semibold text-base">Initialize Escrow</h2>
+
+        <div className="flex flex-col gap-3">
+          <Field label="Title" id="title" value={form.title} onChange={handleField} />
+          <Field label="Description" id="description" value={form.description} onChange={handleField} />
+          <Field label="Amount (USDC)" id="amount" value={form.amount} onChange={handleField} type="number" />
+          <Field label="Service Provider" id="serviceProvider" value={form.serviceProvider} onChange={handleField} />
+          <Field label="Approver" id="approver" value={form.approver} onChange={handleField} />
+        </div>
+
         <button
           onClick={handleInitialize}
           disabled={!isAuthenticated || loading}
@@ -88,7 +155,7 @@ export default function Home() {
 
             {transaction?.step === "success" && transaction.hash && (
               <a
-                href={`https://stellar.expert/explorer/testnet/tx/${transaction.hash}`}
+                href={`https://stellar.expert/explorer/${network}/tx/${transaction.hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 underline text-sm break-all"
@@ -104,7 +171,7 @@ export default function Home() {
             )}
           </div>
         )}
-      </section>
+      </section>}
     </main>
   );
 }

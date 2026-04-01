@@ -9,6 +9,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <PollarProvider
       config={{
         apiKey: process.env.NEXT_PUBLIC_POLLAR_API_KEY ?? "",
+        stellarNetwork: "testnet",
         // baseUrl: "http://localhost:3052",
       }}
     >

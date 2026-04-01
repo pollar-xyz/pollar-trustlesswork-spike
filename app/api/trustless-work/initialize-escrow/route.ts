@@ -11,9 +11,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing environment variables." }, { status: 500 });
   }
 
-  const body = await request.json() as { signer?: string; amount?: number };
+  const body = await request.json() as {
+    signer?: string;
+    amount?: number;
+    title?: string;
+    description?: string;
+    serviceProvider?: string;
+    approver?: string;
+  };
   const signer = body.signer?.trim();
   const amount = Number(body.amount ?? 1);
+  const title = body.title?.trim() || "Pollar TW Spike Escrow";
+  const description = body.description?.trim() || "Single-release escrow from Pollar spike";
+  const serviceProvider = body.serviceProvider?.trim() || signer;
+  const approver = body.approver?.trim() || signer;
 
   if (!signer) {
     return NextResponse.json({ error: "Missing signer." }, { status: 400 });
@@ -22,11 +33,11 @@ export async function POST(request: Request) {
   const payload = {
     signer,
     engagementId: `spike-${Date.now()}`,
-    title: "Pollar TW Spike Escrow",
-    description: "Single-release escrow from Pollar spike",
+    title,
+    description,
     roles: {
-      approver: signer,
-      serviceProvider: signer,
+      approver,
+      serviceProvider,
       platformAddress: signer,
       releaseSigner: signer,
       disputeResolver: signer,
